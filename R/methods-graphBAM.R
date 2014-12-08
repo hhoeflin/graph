@@ -496,18 +496,40 @@ setMethod("numNodes", signature("graphBAM"),
 setMethod("isAdjacent",
         signature(object="graphBAM", from="character", to="character"),
         function(object, from, to) {
+
+            if(length(from) > 1 & length(to) == 1)
+                to <- rep(to, length(from))
+
+            if(length(to) > 1 & length(from) == 1)
+                from <- rep(from, length(to))
+            
+            stopifnot(length(from) == length(to))
+            
             nodeNames <- object@nodes
-            req_ft <- .align_from_to(from, to, nodeNames)
-            if (!isDirected(object)) {
-                ## normalize edges so that edges have nodes in lexical order
-                tmp <- .undirectEdges(req_ft[ , "from"], req_ft[ , "to"])
-                req_ft[ , "from"] <- tmp[["from"]]
-                req_ft[ , "to"] <- tmp[["to"]]
-            }
-            from_i <- match(req_ft[ , "from"], nodeNames)
-            to_i <- match(req_ft[ , "to"], nodeNames)
-            .Call(graph_bitarray_getBitCell, object@edgeSet@bit_vector, from_i, to_i)
-        })
+            edge.matrix <- edgeMatrix(object)
+            edge.count <- ncol(edge.matrix)
+            reciprocal.edges <- edgemode(object) == "undirected"
+
+            result <- rep(FALSE, length(from))
+            pair.count <- length(from)
+            
+            for(pc in seq_len(pair.count)) {
+               for(ec in seq_len(edge.count)){
+                  from.node <- nodeNames[edge.matrix["from", ec]]
+                  to.node   <- nodeNames[edge.matrix["to", ec]]
+                  if(from.node == from[pc] & to.node == to[pc]){
+                      result[pc] <- TRUE
+                      break;
+                      }
+                  if(reciprocal.edges & to.node == from[pc] & from.node == to[pc]){
+                     result[pc] <- TRUE
+                     break;
+                     }
+                  } # for ec
+              } # for pc
+            result  
+        }) # isAdjacent
+
 
 setMethod("subGraph", signature(snodes="character", graph="graphBAM"),
         function(snodes, graph){ 
@@ -550,6 +572,27 @@ setMethod("edgeMatrix", "graphBAM",
                 df <- rbind(df, cbind(as.vector(df[, "to"]),
                             as.vector(df[, "from"])))
             t(df)
+        })
+
+
+setMethod("adjacencyMatrix", "graphBAM",
+        function(object) {
+            reciprocal.edges <- edgemode(object) == "undirected";
+            em <- edgeMatrix(object)
+            nodes <- nodes(object)
+            node.count <- length(nodes)
+            mtx.adj <- matrix(0, nrow=node.count, ncol=node.count,
+                              dimnames=list(nodes, nodes))
+            for(col in 1:ncol(em)){
+               from <- em["from", col]
+               to   <- em["to",   col]
+               from.node <- nodes[from]
+               to.node   <- nodes[to]
+               mtx.adj[from.node, to.node] <- 1;
+               if(reciprocal.edges)
+                   mtx.adj[to.node, from.node] <- 1;
+               }
+            mtx.adj
         })
 
 setMethod("clearNode",

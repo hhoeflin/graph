@@ -1549,3 +1549,62 @@ test_removeEdge_from_undirectedGraph <- function() {
   g <- removeEdge(from="B", to="A", g=g)
   checkEquals(numEdges(g), 0)
 }
+
+test_isAdjacent <- function()
+{
+  am <- adjacencyMatrix   # for shorthand
+
+  g <- graphBAM(data.frame(from="B", to="C", weight=1), edgemode="undirected")
+  checkEquals(rownames(am(g)), c("B", "C"))
+  checkEquals(colnames(am(g)), c("B", "C"))
+  checkEquals(am(g)["B","C"], 1)
+  checkEquals(am(g)["C","B"], 1)
+  checkTrue(isAdjacent(g, "B", "C"))
+  checkTrue(isAdjacent(g, "C", "B"))
+
+  checkEquals(as.numeric(edgeMatrix(g)), c(1,2))   # reciprocal edges not stored
+
+    # add a node, then an edge to the undirected graph g
+  g <- addNode("A", g)
+  checkEquals(nodes(g), c("A", "B", "C"))
+    # just one edge
+  checkEquals(sum(am(g)), 2)
+  checkEquals(am(g)["B", "C"], 1)
+  checkEquals(am(g)["C", "B"], 1)
+
+  checkTrue(isAdjacent(g, "B", "C"))
+  checkTrue(isAdjacent(g, "C", "B"))
+
+  g <- addEdge(from="C", to="A", graph=g)
+  checkEquals(sum(am(g)), 4)
+  checkEquals(am(g)["B", "C"], 1)
+  checkEquals(am(g)["C", "B"], 1)
+  checkEquals(am(g)["A", "C"], 1)
+  checkEquals(am(g)["C", "A"], 1)
+
+    # robert's bug:  both of these fail though direct inspection
+    # of either edgeMatrix or adjacencyMatrix show correct edges
+  checkTrue(isAdjacent(g, "A", "C"))
+  checkTrue(isAdjacent(g, "C", "A"))
+
+     # now verify non-reciprocity of B-C edge in a directed graph
+  gd <- graphBAM(data.frame(from="B", to="C", weight=1), edgemode="directed")
+  checkEquals(rownames(am(gd)), c("B", "C"))
+  checkEquals(colnames(am(gd)), c("B", "C"))
+  checkEquals(am(gd)["B","C"], 1)
+  checkTrue(isAdjacent(gd, "B", "C"))
+  checkTrue(!isAdjacent(gd, "C", "B"))
+
+    # add a node, then an edge to the directed graph gd
+  gd <- addNode("A", gd)
+  checkEquals(nodes(gd), c("A", "B", "C"))
+    # just one edge
+  checkEquals(sum(am(gd)), 1)
+  checkEquals(am(gd)["B", "C"], 1)
+  checkTrue(isAdjacent(gd, "B", "C"))
+
+  gd <- addEdge(from="C", to="A", graph=gd)
+  checkTrue(isAdjacent(gd, "C", "A"))
+
+} # test_isAdjacent
+
